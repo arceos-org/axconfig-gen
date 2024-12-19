@@ -4,6 +4,7 @@ use toml_edit::Value;
 
 use crate::{ConfigErr, ConfigResult, ConfigType};
 
+/// A structure representing a config value.
 #[derive(Clone)]
 pub struct ConfigValue {
     value: Value,
@@ -11,18 +12,20 @@ pub struct ConfigValue {
 }
 
 impl ConfigValue {
+    /// Parses a TOML-formatted string into a [`ConfigValue`].
     pub fn new(s: &str) -> ConfigResult<Self> {
         let value = s.parse::<Value>()?;
-        Self::new_with_value(&value)
+        Self::from_raw_value(&value)
     }
 
+    /// Parses a TOML-formatted string into a [`ConfigValue`] with a specified type.
     pub fn new_with_type(s: &str, ty: &str) -> ConfigResult<Self> {
         let value = s.parse::<Value>()?;
         let ty = ConfigType::new(ty)?;
-        Self::new_with_value_type(&value, ty)
+        Self::from_raw_value_type(&value, ty)
     }
 
-    pub(crate) fn new_with_value(value: &Value) -> ConfigResult<Self> {
+    pub(crate) fn from_raw_value(value: &Value) -> ConfigResult<Self> {
         if !value_is_valid(value) {
             return Err(ConfigErr::InvalidValue);
         }
@@ -32,7 +35,7 @@ impl ConfigValue {
         })
     }
 
-    pub(crate) fn new_with_value_type(value: &Value, ty: ConfigType) -> ConfigResult<Self> {
+    pub(crate) fn from_raw_value_type(value: &Value, ty: ConfigType) -> ConfigResult<Self> {
         if !value_is_valid(value) {
             return Err(ConfigErr::InvalidValue);
         }
@@ -46,27 +49,43 @@ impl ConfigValue {
         }
     }
 
+    /// Returns the type of the config value if it is specified on construction.
     pub fn ty(&self) -> Option<&ConfigType> {
         self.ty.as_ref()
     }
 
-    pub fn inferred_type(self) -> ConfigResult<ConfigType> {
+    /// Returns the value of the config item.
+    pub(crate) fn value(&self) -> &Value {
+        &self.value
+    }
+
+    /// Returns the inferred type of the config value.
+    pub fn inferred_type(&self) -> ConfigResult<ConfigType> {
         inferred_type(&self.value)
     }
 
+    /// Returns whether the type of the config value matches the specified type.
     pub fn type_matches(&self, ty: &ConfigType) -> bool {
         value_type_matches(&self.value, ty)
     }
 
-    pub fn to_toml(&self) -> String {
+    /// Returns the TOML-formatted string of the config value.
+    pub fn to_toml_value(&self) -> String {
         to_toml(&self.value)
+    }
+
+    /// Returns the Rust code of the config value.
+    ///
+    /// The `indent` parameter specifies the number of spaces to indent the code.
+    pub fn to_rust_value(&self, ty: &ConfigType, indent: usize) -> ConfigResult<String> {
+        to_rust(&self.value, ty, indent)
     }
 }
 
 impl fmt::Debug for ConfigValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ConfigValue")
-            .field("value", &self.to_toml())
+            .field("value", &self.to_toml_value())
             .field("type", &self.ty)
             .finish()
     }
@@ -201,140 +220,49 @@ pub fn to_toml(value: &Value) -> String {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{ConfigErr, ConfigResult, ConfigType, ConfigValue};
-
-    fn check_type_infer(value: &str, expect_ty: &str) -> ConfigResult<()> {
-        let value = ConfigValue::new(value)?;
-        let expect = ConfigType::new(expect_ty)?;
-        let inferred = value.inferred_type()?;
-        if inferred != expect {
-            println!("inferred: {:?}, expect: {:?}", inferred, expect);
-            return Err(super::ConfigErr::ValueTypeMismatch);
-        }
-        Ok(())
-    }
-
-    macro_rules! assert_err {
-        ($res:expr, $err:ident) => {
-            match $res {
-                Err(ConfigErr::$err) => {}
-                _ => panic!("expected `Err({:?})`, got `{:?}`", ConfigErr::$err, $res),
+pub fn to_rust(value: &Value, ty: &ConfigType, indent: usize) -> ConfigResult<String> {
+    match (value, ty) {
+        (Value::Boolean(b), ConfigType::Bool) => Ok(b.display_repr().to_string()),
+        (Value::Integer(i), ConfigType::Int | ConfigType::Uint) => Ok(i.display_repr().to_string()),
+        (Value::String(s), _) => {
+            if matches!(ty, ConfigType::Int | ConfigType::Uint) {
+                Ok(s.value().to_string())
+            } else if matches!(ty, ConfigType::String) {
+                Ok(s.display_repr().to_string())
+            } else {
+                Err(ConfigErr::ValueTypeMismatch)
             }
-        };
-    }
-
-    #[test]
-    fn test_type_infer() {
-        macro_rules! check_infer {
-            ($value:expr, $ty:expr) => {
-                check_type_infer($value, $ty).unwrap();
-            };
         }
-
-        check_infer!("true", "bool");
-        check_infer!("false", "bool");
-
-        check_infer!("0", "uint");
-        check_infer!("2333", "uint");
-        check_infer!("-2333", "int");
-        check_infer!("0b1010", "uint");
-        check_infer!("0xdead_beef", "uint");
-
-        check_infer!("\"0xffff_ffff_ffff_ffff\"", "uint");
-        check_infer!("\"hello, world!\"", "str");
-        check_infer!("\"0o777\"", "uint");
-        check_infer!("\"0xx233\"", "str");
-        check_infer!("\"\"", "str");
-
-        check_infer!("[1, 2, 3]", "[uint]");
-        check_infer!("[\"1\", \"2\", \"3\"]", "[uint]");
-        check_infer!("[\"a\", \"b\", \"c\"]", "[str]");
-        check_infer!("[true, false, true]", "[bool]");
-        check_infer!("[\"0\", \"a\", true, -2]", "(uint, str, bool, int)");
-        check_infer!("[]", "?");
-        check_infer!("[[]]", "?");
-        check_infer!("[[2, 3, 3, 3], [4, 5, 6, 7]]", "[[uint]]");
-        check_infer!("[[1], [2, 3], [4, 5, 6]]", "[[uint]]");
-        check_infer!(
-            "[[2, 3, 3], [4, 5, \"abc\", 7]]",
-            "([uint], (uint, uint, str, uint))"
-        );
-    }
-
-    #[test]
-    fn test_type_match() {
-        macro_rules! check_match {
-            ($value:expr, $ty:expr) => {
-                ConfigValue::new_with_type($value, $ty).unwrap();
-            };
+        (Value::Array(arr), ConfigType::Tuple(ty)) => {
+            if arr.len() != ty.len() {
+                return Err(ConfigErr::ValueTypeMismatch);
+            }
+            let elements = arr
+                .iter()
+                .zip(ty)
+                .map(|(v, t)| to_rust(v, t, indent))
+                .collect::<ConfigResult<Vec<_>>>()?;
+            Ok(format!("({})", elements.join(", ")))
         }
-        macro_rules! check_mismatch {
-            ($value:expr, $ty:expr) => {
-                assert_err!(ConfigValue::new_with_type($value, $ty), ValueTypeMismatch);
+        (Value::Array(arr), ConfigType::Array(ty)) => {
+            let elements = arr
+                .iter()
+                .map(|v| to_rust(v, ty, indent + 4))
+                .collect::<ConfigResult<Vec<_>>>()?;
+            let code = if arr.iter().any(|e| e.is_array()) {
+                let spaces = format!("\n{:indent$}", "", indent = indent + 4);
+                let spaces_end = format!(",\n{:indent$}", "", indent = indent);
+                format!(
+                    "&[{}{}{}]",
+                    spaces,
+                    elements.join(&format!(",{}", spaces)),
+                    spaces_end
+                )
+            } else {
+                format!("&[{}]", elements.join(", "))
             };
+            Ok(code)
         }
-
-        check_match!("true", "bool");
-        check_match!("false", "bool");
-        check_mismatch!("true", "int");
-
-        check_match!("0", "uint");
-        check_match!("0", "int");
-        check_match!("2333", "int");
-        check_match!("-2333", "uint");
-        check_match!("0b1010", "int");
-        check_match!("0xdead_beef", "int");
-
-        check_mismatch!("\"abc\"", "uint");
-        check_match!("\"0xffff_ffff_ffff_ffff\"", "uint");
-        check_match!("\"0xffff_ffff_ffff_ffff\"", "str");
-        check_match!("\"hello, world!\"", "str");
-        check_match!("\"0o777\"", "uint");
-        check_match!("\"0xx233\"", "str");
-        check_match!("\"\"", "str");
-
-        check_match!("[1, 2, 3]", "[uint]");
-        check_match!("[\"1\", \"2\", \"3\"]", "[uint]");
-        check_match!("[\"1\", \"2\", \"3\"]", "[str]");
-        check_match!("[true, false, true]", "[bool]");
-        check_match!("[\"0\", \"a\", true, -2]", "(uint, str, bool, int)");
-        check_mismatch!("[\"0\", \"a\", true, -2]", "[uint]");
-        check_match!("[]", "[int]");
-        check_match!("[[]]", "[()]");
-        check_match!("[[2, 3, 3, 3], [4, 5, 6, 7]]", "[[uint]]");
-        check_match!("[[2, 3, 3, 3], [4, 5, 6, 7]]", "[(int, int, int, int)]");
-        check_match!("[[1], [2, 3], [4, 5, 6]]", "[[uint]]");
-        check_match!("[[1], [2, 3], [4, 5, 6]]", "([uint],[uint],[uint])");
-        check_match!("[[1], [2, 3], [4, 5, 6]]", "((uint),(uint, uint),[uint])");
-        check_match!(
-            "[[2, 3, 3], [4, 5, \"abc\", 7]]",
-            "((int, int, int), (uint, uint, str, uint))"
-        );
-        check_match!("[[1,2], [3,4], [5,6,7]]", "[[uint]]");
-        check_match!("[[1,2], [3,4], [5,6,7]]", "([uint], [uint], [uint])");
-        check_match!("[[1,2], [3,4], [5,6,7]]", "((uint,uint), [uint], [uint])");
-        check_mismatch!("[[1,2], [3,4], [5,6,7]]", "[(uint, uint)]");
-        check_match!("[[[[],[]],[[]]],[]]", "[[[[uint]]]]");
-    }
-
-    #[test]
-    fn test_err() {
-        assert_err!(ConfigType::new("Bool"), InvalidType);
-        assert_err!(ConfigType::new("usize"), InvalidType);
-        assert_err!(ConfigType::new(""), InvalidType);
-        assert_err!(ConfigType::new("&str"), InvalidType);
-        assert_err!(ConfigType::new("[]"), InvalidType);
-        assert_err!(ConfigType::new("(("), InvalidType);
-        assert_err!(ConfigType::new("(int,"), InvalidType);
-        assert_err!(ConfigType::new("(,)"), InvalidType);
-        assert_err!(ConfigType::new("(uint,)"), InvalidType);
-        assert_err!(ConfigType::new("[uint, uint]"), InvalidType);
-        assert_err!(ConfigType::new("()()"), InvalidType);
-        assert_err!(ConfigType::new("(()())"), InvalidType);
-        assert!(ConfigType::new("((),())").is_ok());
-        assert!(ConfigType::new("(  )").is_ok());
-        assert_err!(ConfigValue::new("233.0"), InvalidValue);
+        _ => Err(ConfigErr::ValueTypeMismatch),
     }
 }

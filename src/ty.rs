@@ -1,24 +1,28 @@
 use crate::{ConfigErr, ConfigResult};
 
+/// The supported types in the config file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigType {
-    /// Boolean type.
+    /// Boolean type (`bool`).
     Bool,
-    /// Signed integer type.
+    /// Signed integer type (`int`).
     Int,
-    /// Unsigned integer type.
+    /// Unsigned integer type (`uint`).
     Uint,
-    /// String type.
+    /// String type (`str`).
     String,
-    /// Array of tuples.
+    /// Tuple type (e.g., `(int, str)`).
     Tuple(Vec<ConfigType>),
-    /// Array type.
+    /// Array type (e.g., `[int]`).
     Array(Box<ConfigType>),
     /// Type is unknown.
+    ///
+    /// It is used for type inference.
     Unknown,
 }
 
 impl ConfigType {
+    /// Parses a type string into a [`ConfigType`].
     pub fn new(ty: &str) -> ConfigResult<Self> {
         #[cfg(test)]
         if ty == "?" {
@@ -56,6 +60,7 @@ impl ConfigType {
         }
     }
 
+    /// Converts the type into a Rust type string.
     pub fn to_rust_type(&self) -> String {
         match self {
             Self::Bool => "bool".into(),
@@ -70,7 +75,7 @@ impl ConfigType {
                     .join(", ");
                 format!("({})", items)
             }
-            Self::Array(ty) => format!("Vec<{}>", ty.to_rust_type()),
+            Self::Array(ty) => format!("&[{}]", ty.to_rust_type()),
             _ => panic!("Unknown type"),
         }
     }

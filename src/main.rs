@@ -1,6 +1,7 @@
 use std::io;
 
-use axconfig_gen::Config;
+use axconfig_gen::{Config, OutputFormat};
+use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -17,6 +18,15 @@ struct Args {
     /// Path to the output config file
     #[arg(short, long)]
     output: Option<String>,
+
+    /// The output format
+    #[arg(
+        short, long,
+        default_value_t = OutputFormat::Toml,
+        value_parser = PossibleValuesParser::new(["toml", "rust"])
+            .map(|s| s.parse::<OutputFormat>().unwrap()),
+    )]
+    fmt: OutputFormat,
 }
 
 fn main() -> io::Result<()> {
@@ -38,7 +48,7 @@ fn main() -> io::Result<()> {
         defconfig
     };
 
-    let output = output_config.gen_toml().unwrap();
+    let output = output_config.dump(args.fmt).unwrap();
     if let Some(path) = args.output {
         std::fs::write(path, output)?;
     } else {

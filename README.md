@@ -20,3 +20,5 @@ For example, to generate a config file `.axconfig.toml` from the config specific
 ```sh
 axconfig-gen -s a.toml -s b.toml -o .axconfig.toml
 ```
+
+See [defconfig.toml](example_configs/defconfig.toml) for an example of a config specification file.
