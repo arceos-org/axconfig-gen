@@ -1,4 +1,4 @@
-use crate::{ConfigErr, ConfigResult, ConfigType, ConfigValue};
+use crate::{Config, ConfigErr, ConfigResult, ConfigType, ConfigValue, OutputFormat};
 
 fn check_type_infer(value: &str, expect_ty: &str) -> ConfigResult<()> {
     let value = ConfigValue::new(value)?;
@@ -176,4 +176,15 @@ fn test_to_rust() {
     let value = ConfigValue::new(cfg).unwrap();
     assert_eq!(ty.to_rust_type(), "&[&[(usize, &[&str], usize)]]");
     assert_eq!(value.to_rust_value(&ty, 0).unwrap(), rust);
+}
+
+#[test]
+fn integration_test() -> std::io::Result<()> {
+    let spec = std::fs::read_to_string("example_configs/defconfig.toml")?;
+    let toml = std::fs::read_to_string("example_configs/output.toml")?;
+    let rust = std::fs::read_to_string("example_configs/output.rs")?;
+    let cfg = Config::from_toml(&spec).unwrap();
+    assert_eq!(cfg.dump(OutputFormat::Toml).unwrap(), toml);
+    assert_eq!(cfg.dump(OutputFormat::Rust).unwrap(), rust);
+    Ok(())
 }
