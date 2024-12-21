@@ -214,6 +214,16 @@ impl Config {
         Ok(output.result().into())
     }
 
+    /// Dump the config into TOML format.
+    pub fn dump_toml(&self) -> ConfigResult<String> {
+        self.dump(OutputFormat::Toml)
+    }
+
+    /// Dump the config into Rust code.
+    pub fn dump_rs(&self) -> ConfigResult<String> {
+        self.dump(OutputFormat::Rust)
+    }
+
     /// Merge the other config into self, if there is a duplicate key, return an error.
     pub fn merge(&mut self, other: &Self) -> ConfigResult<()> {
         for (name, other_table, table_comments) in other.table_iter() {
@@ -237,8 +247,8 @@ impl Config {
 
     /// Update the values of self with the other config, if there is a key not found in self, skip it.
     pub fn update(&mut self, other: &Self) -> ConfigResult<()> {
-        for (table_name, key, item) in other.iter() {
-            let table = if table_name == "__GLOBAL__" {
+        for (table_name, key, other_item) in other.iter() {
+            let self_table = if table_name == "__GLOBAL__" {
                 &mut self.global
             } else if let Some(table) = self.tables.get_mut(table_name) {
                 table
@@ -246,10 +256,10 @@ impl Config {
                 continue;
             };
 
-            if let Some(self_item) = table.get_mut(key) {
+            if let Some(self_item) = self_table.get_mut(key) {
                 if let Some(ty) = self_item.value.ty() {
                     if let Ok(new_value) =
-                        ConfigValue::from_raw_value_type(item.value.value(), ty.clone())
+                        ConfigValue::from_raw_value_type(other_item.value.value(), ty.clone())
                     {
                         self_item.value = new_value;
                     } else {

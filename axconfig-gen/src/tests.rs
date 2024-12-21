@@ -180,9 +180,9 @@ fn test_to_rust() {
 
 #[test]
 fn integration_test() -> std::io::Result<()> {
-    let spec = std::fs::read_to_string("example_configs/defconfig.toml")?;
-    let toml = std::fs::read_to_string("example_configs/output.toml")?;
-    let rust = std::fs::read_to_string("example_configs/output.rs")?;
+    let spec = std::fs::read_to_string("../example-configs/defconfig.toml")?;
+    let toml = std::fs::read_to_string("../example-configs/output.toml")?;
+    let rust = std::fs::read_to_string("../example-configs/output.rs")?;
     let cfg = Config::from_toml(&spec).unwrap();
     assert_eq!(cfg.dump(OutputFormat::Toml).unwrap(), toml);
     assert_eq!(cfg.dump(OutputFormat::Rust).unwrap(), rust);

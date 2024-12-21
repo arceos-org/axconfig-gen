@@ -68,7 +68,7 @@ impl Output {
                 for line in comments.lines() {
                     self.println(&line.replacen("#", "///", 1));
                 }
-                self.println_fmt(format_args!("mod {} {{", mod_name(name)));
+                self.println_fmt(format_args!("pub mod {} {{", mod_name(name)));
                 self.indent += 4;
             }
         }

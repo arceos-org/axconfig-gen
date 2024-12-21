@@ -36,15 +36,13 @@ jobs:
       contents: write
     env:
       default-branch: ${{ format('refs/heads/{0}', github.event.repository.default_branch) }}
-      RUSTDOCFLAGS: -D rustdoc::broken_intra_doc_links -D missing-docs
+      RUSTDOCFLAGS: -Zunstable-options --enable-index-page -D rustdoc::broken_intra_doc_links -D missing-docs
     steps:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@nightly
     - name: Build docs
       continue-on-error: ${{ github.ref != env.default-branch && github.event_name != 'pull_request' }}
-      run: |
-        cargo doc --no-deps --all-features
-        printf '<meta http-equiv="refresh" content="0;url=axconfig_gen/index.html">' > target/doc/index.html
+      run: cargo doc --no-deps --all-features
     - name: Deploy to Github Pages
       if: ${{ github.ref == env.default-branch }}
       uses: JamesIves/github-pages-deploy-action@v4

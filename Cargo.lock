@@ -60,6 +60,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "axconfig-gen-macros"
+version = "0.1.0"
+dependencies = [
+ "axconfig-gen",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "clap"
 version = "4.5.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"

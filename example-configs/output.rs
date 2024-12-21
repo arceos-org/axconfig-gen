@@ -2,13 +2,13 @@
 pub const ARCH: &str = "x86_64";
 /// Platform identifier.
 pub const PLAT: &str = "x86_64-qemu-q35";
-/// Number of CPUs
+/// Number of CPUs.
 pub const SMP: usize = 1;
 
 ///
 /// Device specifications
 ///
-mod device {
+pub mod device {
     /// MMIO regions with format (`base_paddr`, `size`).
     pub const MMIO_REGIONS: &[(usize, usize)] = &[
         (0xb000_0000, 0x1000_0000),
@@ -30,7 +30,7 @@ mod device {
 ///
 /// Kernel configs
 ///
-mod kernel {
+pub mod kernel {
     /// Stack size of each task.
     pub const TASK_STACK_SIZE: usize = 0;
     /// Number of timer ticks per second (Hz). A timer tick may contain several timer
@@ -41,7 +41,7 @@ mod kernel {
 ///
 /// Platform configs
 ///
-mod platform {
+pub mod platform {
     /// Kernel address space base.
     pub const KERNEL_ASPACE_BASE: usize = 0xffff_ff80_0000_0000;
     /// Kernel address space size.

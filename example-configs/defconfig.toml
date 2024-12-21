@@ -2,7 +2,7 @@
 arch = "x86_64"             # str
 # Platform identifier.
 plat = "x86_64-qemu-q35"    # str
-# Number of CPUs
+# Number of CPUs.
 smp = 1                     # uint
 
 #

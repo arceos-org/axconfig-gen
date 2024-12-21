@@ -1,4 +1,4 @@
-//! A library for parsing TOML-based config files.
+#![doc = include_str!("../README.md")]
 
 mod config;
 mod output;
