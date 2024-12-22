@@ -109,3 +109,26 @@ fn split_tuple_items(s: &str) -> Option<Vec<&str>> {
         None
     }
 }
+
+impl std::fmt::Display for ConfigType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bool => write!(f, "bool"),
+            Self::Int => write!(f, "int"),
+            Self::Uint => write!(f, "uint"),
+            Self::String => write!(f, "str"),
+            Self::Tuple(items) => {
+                write!(f, "(")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, ")")
+            }
+            Self::Array(ty) => write!(f, "[{}]", ty),
+            Self::Unknown => write!(f, "?"),
+        }
+    }
+}

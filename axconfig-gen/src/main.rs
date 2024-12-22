@@ -118,6 +118,11 @@ fn main() -> io::Result<()> {
 
     let output = unwrap!(config.dump(args.fmt));
     if let Some(path) = args.output {
+        if let Ok(oldconfig) = std::fs::read_to_string(&path) {
+            if oldconfig == output {
+                return Ok(());
+            }
+        }
         std::fs::write(path, output)?;
     } else {
         println!("{}", output);

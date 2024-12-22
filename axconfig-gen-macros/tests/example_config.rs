@@ -20,13 +20,13 @@ macro_rules! mod_cmp {
         assert_eq!($mod1::PLAT, $mod2::PLAT);
         assert_eq!($mod1::SMP, $mod2::SMP);
 
-        assert_eq!($mod1::device::MMIO_REGIONS, $mod2::device::MMIO_REGIONS);
-        assert_eq!($mod1::device::PCI_BUS_END, $mod2::device::PCI_BUS_END);
-        assert_eq!($mod1::device::PCI_ECAM_BASE, $mod2::device::PCI_ECAM_BASE);
-        assert_eq!($mod1::device::PCI_RANGES, $mod2::device::PCI_RANGES);
+        assert_eq!($mod1::devices::MMIO_REGIONS, $mod2::devices::MMIO_REGIONS);
+        assert_eq!($mod1::devices::PCI_BUS_END, $mod2::devices::PCI_BUS_END);
+        assert_eq!($mod1::devices::PCI_ECAM_BASE, $mod2::devices::PCI_ECAM_BASE);
+        assert_eq!($mod1::devices::PCI_RANGES, $mod2::devices::PCI_RANGES);
         assert_eq!(
-            $mod1::device::VIRTIO_MMIO_REGIONS,
-            $mod2::device::VIRTIO_MMIO_REGIONS
+            $mod1::devices::VIRTIO_MMIO_REGIONS,
+            $mod2::devices::VIRTIO_MMIO_REGIONS
         );
 
         assert_eq!(

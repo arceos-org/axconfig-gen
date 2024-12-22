@@ -59,15 +59,26 @@ impl Output {
         self.println_fmt(format_args!("{}", s));
     }
 
+    pub fn print_lines(&mut self, s: &str, line_op: impl Fn(&str) -> String) {
+        for line in s.lines() {
+            let line = line_op(line);
+            if !line.is_empty() {
+                self.println(&line);
+            }
+        }
+    }
+
     pub fn table_begin(&mut self, name: &str, comments: &str) {
+        if !self.result.is_empty() {
+            self.println("");
+        }
         match self.fmt {
             OutputFormat::Toml => {
-                self.println_fmt(format_args!("{}[{}]", comments, name));
+                self.print_lines(comments, |l| l.trim().into());
+                self.println(&format!("[{}]", name));
             }
             OutputFormat::Rust => {
-                for line in comments.lines() {
-                    self.println(&line.replacen("#", "///", 1));
-                }
+                self.print_lines(comments, |l| l.trim().replacen("#", "///", 1));
                 self.println_fmt(format_args!("pub mod {} {{", mod_name(name)));
                 self.indent += 4;
             }
@@ -84,17 +95,20 @@ impl Output {
     pub fn write_item(&mut self, item: &ConfigItem) -> ConfigResult<()> {
         match self.fmt {
             OutputFormat::Toml => {
+                self.print_lines(item.comments(), |l| l.trim().into());
                 self.println_fmt(format_args!(
-                    "{}{} = {}",
-                    item.comments(),
+                    "{} = {}{}",
                     item.key(),
-                    item.value().to_toml_value()
+                    item.value().to_toml_value(),
+                    if let Some(ty) = item.value().ty() {
+                        format!(" # {}", ty)
+                    } else {
+                        "".into()
+                    },
                 ));
             }
             OutputFormat::Rust => {
-                for line in item.comments().lines() {
-                    self.println(&line.replacen("#", "///", 1));
-                }
+                self.print_lines(item.comments(), |l| l.trim().replacen("#", "///", 1));
                 let key = const_name(item.key());
                 let val = item.value();
                 let ty = if let Some(ty) = val.ty() {

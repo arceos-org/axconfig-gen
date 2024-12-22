@@ -49,8 +49,8 @@ tuple = [1, "abc", 3]
 let config = Config::from_toml(config_toml).unwrap();
 let rust_code = config.dump(OutputFormat::Rust).unwrap();
 
-assert_eq!(rust_code, r#"
-pub const ARE_YOU_OK: bool = true;
+assert_eq!(rust_code,
+r#"pub const ARE_YOU_OK: bool = true;
 pub const ONE_TWO_THREE: usize = 123;
 
 pub mod hello {

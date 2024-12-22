@@ -8,7 +8,7 @@ pub const SMP: usize = 1;
 ///
 /// Device specifications
 ///
-pub mod device {
+pub mod devices {
     /// MMIO regions with format (`base_paddr`, `size`).
     pub const MMIO_REGIONS: &[(usize, usize)] = &[
         (0xb000_0000, 0x1000_0000),
