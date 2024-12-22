@@ -24,20 +24,19 @@ pub enum ConfigType {
 impl ConfigType {
     /// Parses a type string into a [`ConfigType`].
     pub fn new(ty: &str) -> ConfigResult<Self> {
+        let ty = ty.trim();
         #[cfg(test)]
         if ty == "?" {
             return Ok(Self::Unknown);
         }
-
-        let ty = ty.replace(" ", "");
-        match ty.as_str() {
+        match ty {
             "bool" => Ok(Self::Bool),
             "int" => Ok(Self::Int),
             "uint" => Ok(Self::Uint),
             "str" => Ok(Self::String),
             _ => {
                 if ty.starts_with("(") && ty.ends_with(")") {
-                    let tuple = &ty[1..ty.len() - 1];
+                    let tuple = ty[1..ty.len() - 1].trim();
                     if tuple.is_empty() {
                         return Ok(Self::Tuple(Vec::new()));
                     }
@@ -48,7 +47,7 @@ impl ConfigType {
                         .collect::<ConfigResult<Vec<_>>>()?;
                     Ok(Self::Tuple(tuple_types))
                 } else if ty.starts_with('[') && ty.ends_with("]") {
-                    let element = &ty[1..ty.len() - 1];
+                    let element = ty[1..ty.len() - 1].trim();
                     if element.is_empty() {
                         return Err(ConfigErr::InvalidType);
                     }

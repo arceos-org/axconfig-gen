@@ -54,9 +54,29 @@ impl ConfigValue {
         self.ty.as_ref()
     }
 
-    /// Returns the value of the config item.
-    pub(crate) fn value(&self) -> &Value {
-        &self.value
+    /// Updates the config value with a new value.
+    pub fn update(&mut self, new_value: Self) -> ConfigResult<()> {
+        match (&self.ty, &new_value.ty) {
+            (Some(ty), Some(new_ty)) => {
+                if ty != new_ty {
+                    return Err(ConfigErr::ValueTypeMismatch);
+                }
+            }
+            (Some(ty), None) => {
+                if !value_type_matches(&new_value.value, ty) {
+                    return Err(ConfigErr::ValueTypeMismatch);
+                }
+            }
+            (None, Some(new_ty)) => {
+                if !value_type_matches(&self.value, new_ty) {
+                    return Err(ConfigErr::ValueTypeMismatch);
+                }
+                self.ty = new_value.ty;
+            }
+            _ => {}
+        }
+        self.value = new_value.value;
+        Ok(())
     }
 
     /// Returns the inferred type of the config value.

@@ -15,6 +15,8 @@ Options:
   -c, --oldconfig <OLDCONFIG>  Path to the old config file
   -o, --output <OUTPUT>        Path to the output config file
   -f, --fmt <FMT>              The output format [default: toml] [possible values: toml, rust]
+  -w, --write <CONFIG>         Setting a config item with format `table.key=value`
+  -v, --verbose                Verbose mode
   -h, --help                   Print help
   -V, --version                Print version
 ```

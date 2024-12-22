@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use toml_edit::{Decor, DocumentMut, Item, Table, Value};
 
 use crate::output::{Output, OutputFormat};
@@ -11,13 +11,14 @@ type ConfigTable = BTreeMap<String, ConfigItem>;
 /// It contains the config key, value and comments.
 #[derive(Debug, Clone)]
 pub struct ConfigItem {
+    table_name: String,
     key: String,
     value: ConfigValue,
     comments: String,
 }
 
 impl ConfigItem {
-    fn new(table: &Table, key: &str, value: &Value) -> ConfigResult<Self> {
+    fn new(table_name: &str, table: &Table, key: &str, value: &Value) -> ConfigResult<Self> {
         let inner = || {
             let item = table.key(key).unwrap();
             let comments = prefix_comments(item.leaf_decor())
@@ -32,6 +33,7 @@ impl ConfigItem {
                 ConfigValue::from_raw_value(value)?
             };
             Ok(Self {
+                table_name: table_name.into(),
                 key: key.into(),
                 value,
                 comments,
@@ -42,6 +44,27 @@ impl ConfigItem {
             eprintln!("Parsing error at key `{}`: {:?}", key, e);
         }
         res
+    }
+
+    fn new_global(table: &Table, key: &str, value: &Value) -> ConfigResult<Self> {
+        Self::new(Config::GLOBAL_TABLE_NAME, table, key, value)
+    }
+
+    /// Returns the unique name of the config item.
+    ///
+    /// If the item is contained in the global table, it returns the iten key.
+    /// Otherwise, it returns a string with the format `table.key`.
+    pub fn item_name(&self) -> String {
+        if self.table_name == Config::GLOBAL_TABLE_NAME {
+            self.key.clone()
+        } else {
+            format!("{}.{}", self.table_name, self.key)
+        }
+    }
+
+    /// Returns the table name of the config item.
+    pub fn table_name(&self) -> &str {
+        &self.table_name
     }
 
     /// Returns the key of the config item.
@@ -58,6 +81,11 @@ impl ConfigItem {
     pub fn comments(&self) -> &str {
         &self.comments
     }
+
+    /// Returns the mutable reference to the value of the config item.
+    pub fn value_mut(&mut self) -> &mut ConfigValue {
+        &mut self.value
+    }
 }
 
 /// A structure storing all config items.
@@ -72,6 +100,9 @@ pub struct Config {
 }
 
 impl Config {
+    /// The name of the global table of the config.
+    pub const GLOBAL_TABLE_NAME: &'static str = "$GLOBAL";
+
     /// Create a new empty config object.
     pub fn new() -> Self {
         Self {
@@ -82,10 +113,11 @@ impl Config {
     }
 
     fn new_table(&mut self, name: &str, comments: &str) -> ConfigResult<&mut ConfigTable> {
-        if name == "__GLOBAL__" {
-            return Err(ConfigErr::Other(
-                "Table name `__GLOBAL__` is reserved".into(),
-            ));
+        if name == Self::GLOBAL_TABLE_NAME {
+            return Err(ConfigErr::Other(format!(
+                "Table name `{}` is reserved",
+                Self::GLOBAL_TABLE_NAME
+            )));
         }
         if self.tables.contains_key(name) {
             return Err(ConfigErr::Other(format!("Duplicate table name `{}`", name)));
@@ -102,12 +134,20 @@ impl Config {
 
     /// Returns the reference to the table with the specified name.
     pub fn table_at(&self, name: &str) -> Option<&BTreeMap<String, ConfigItem>> {
-        self.tables.get(name)
+        if name == Self::GLOBAL_TABLE_NAME {
+            Some(&self.global)
+        } else {
+            self.tables.get(name)
+        }
     }
 
     /// Returns the mutable reference to the table with the specified name.
     pub fn table_at_mut(&mut self, name: &str) -> Option<&mut BTreeMap<String, ConfigItem>> {
-        self.tables.get_mut(name)
+        if name == Self::GLOBAL_TABLE_NAME {
+            Some(&mut self.global)
+        } else {
+            self.tables.get_mut(name)
+        }
     }
 
     /// Returns the reference to the config item with the specified table name and key.
@@ -129,9 +169,9 @@ impl Config {
     /// Returns the iterator of all tables.
     ///
     /// The iterator returns a tuple of table name, table and comments. The
-    /// global table is named `__GLOBAL__`.
+    /// global table is named `$GLOBAL`.
     pub fn table_iter(&self) -> impl Iterator<Item = (&str, &ConfigTable, &str)> {
-        let global_iter = [("__GLOBAL__", &self.global, "")].into_iter();
+        let global_iter = [(Self::GLOBAL_TABLE_NAME, &self.global, "")].into_iter();
         let other_iter = self.tables.iter().map(|(name, configs)| {
             (
                 name.as_str(),
@@ -145,16 +185,9 @@ impl Config {
     /// Returns the iterator of all config items.
     ///
     /// The iterator returns a tuple of table name, key and config item. The
-    /// global table is named `__GLOBAL__`.
-    pub fn iter(&self) -> impl Iterator<Item = (&str, &str, &ConfigItem)> {
-        let global_iter = self
-            .global
-            .iter()
-            .map(|(k, v)| ("__GLOBAL__", k.as_str(), v));
-        let other_iter = self
-            .table_iter()
-            .flat_map(|(t, c, _)| c.iter().map(move |(k, v)| (t, k.as_str(), v)));
-        global_iter.chain(other_iter)
+    /// global table is named `$GLOBAL`.
+    pub fn iter(&self) -> impl Iterator<Item = &ConfigItem> {
+        self.table_iter().flat_map(|(_, c, _)| c.values())
     }
 }
 
@@ -170,14 +203,16 @@ impl Config {
                 Item::Value(val) => {
                     result
                         .global
-                        .insert(key.into(), ConfigItem::new(table, key, val)?);
+                        .insert(key.into(), ConfigItem::new_global(table, key, val)?);
                 }
                 Item::Table(table) => {
+                    let table_name = key;
                     let comments = prefix_comments(table.decor());
                     let configs = result.new_table(key, comments.unwrap_or_default())?;
                     for (key, item) in table.iter() {
                         if let Item::Value(val) = item {
-                            configs.insert(key.into(), ConfigItem::new(table, key, val)?);
+                            configs
+                                .insert(key.into(), ConfigItem::new(table_name, table, key, val)?);
                         } else {
                             return Err(ConfigErr::InvalidValue);
                         }
@@ -199,7 +234,7 @@ impl Config {
     pub fn dump(&self, fmt: OutputFormat) -> ConfigResult<String> {
         let mut output = Output::new(fmt);
         for (name, table, comments) in self.table_iter() {
-            if name != "__GLOBAL__" {
+            if name != Self::GLOBAL_TABLE_NAME {
                 output.table_begin(name, comments);
             }
             for (key, item) in table.iter() {
@@ -207,7 +242,7 @@ impl Config {
                     eprintln!("Dump config `{}` failed: {:?}", key, e);
                 }
             }
-            if name != "__GLOBAL__" {
+            if name != Self::GLOBAL_TABLE_NAME {
                 output.table_end();
             }
         }
@@ -224,12 +259,10 @@ impl Config {
         self.dump(OutputFormat::Rust)
     }
 
-    /// Merge the other config into self, if there is a duplicate key, return an error.
+    /// Merge the other config into `self`, if there is a duplicate key, return an error.
     pub fn merge(&mut self, other: &Self) -> ConfigResult<()> {
         for (name, other_table, table_comments) in other.table_iter() {
-            let self_table = if name == "__GLOBAL__" {
-                &mut self.global
-            } else if let Some(table) = self.tables.get_mut(name) {
+            let self_table = if let Some(table) = self.table_at_mut(name) {
                 table
             } else {
                 self.new_table(name, table_comments)?
@@ -245,31 +278,41 @@ impl Config {
         Ok(())
     }
 
-    /// Update the values of self with the other config, if there is a key not found in self, skip it.
-    pub fn update(&mut self, other: &Self) -> ConfigResult<()> {
-        for (table_name, key, other_item) in other.iter() {
-            let self_table = if table_name == "__GLOBAL__" {
-                &mut self.global
-            } else if let Some(table) = self.tables.get_mut(table_name) {
+    /// Update the values of `self` with the other config, if there is a key not
+    /// found in `self`, skip it.
+    ///
+    /// It returns two vectors of `ConfigItem`, the first contains the keys that
+    /// are included in `self` but not in `other`, the second contains the keys
+    /// that are included in `other` but not in `self`.
+    pub fn update(&mut self, other: &Self) -> ConfigResult<(Vec<ConfigItem>, Vec<ConfigItem>)> {
+        let mut touched = BTreeSet::new(); // included in both `self` and `other`
+        let mut extra = Vec::new(); // included in `other` but not in `self`
+
+        for other_item in other.iter() {
+            let table_name = other_item.table_name.clone();
+            let key = other_item.key.clone();
+            let self_table = if let Some(table) = self.table_at_mut(&table_name) {
                 table
             } else {
+                extra.push(other_item.clone());
                 continue;
             };
 
-            if let Some(self_item) = self_table.get_mut(key) {
-                if let Some(ty) = self_item.value.ty() {
-                    if let Ok(new_value) =
-                        ConfigValue::from_raw_value_type(other_item.value.value(), ty.clone())
-                    {
-                        self_item.value = new_value;
-                    } else {
-                        eprintln!("Type mismatch for key `{}`: expected `{:?}`", key, ty);
-                        return Err(ConfigErr::ValueTypeMismatch);
-                    }
-                }
+            if let Some(self_item) = self_table.get_mut(&key) {
+                self_item.value.update(other_item.value.clone())?;
+                touched.insert(self_item.item_name());
+            } else {
+                extra.push(other_item.clone());
             }
         }
-        Ok(())
+
+        // included in `self` but not in `other`
+        let untouched = self
+            .iter()
+            .filter(|item| !touched.contains(&item.item_name()))
+            .cloned()
+            .collect::<Vec<_>>();
+        Ok((untouched, extra))
     }
 }
 

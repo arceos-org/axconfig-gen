@@ -1,6 +1,6 @@
 use std::io;
 
-use axconfig_gen::{Config, OutputFormat};
+use axconfig_gen::{Config, ConfigValue, OutputFormat};
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::Parser;
 
@@ -27,28 +27,96 @@ struct Args {
             .map(|s| s.parse::<OutputFormat>().unwrap()),
     )]
     fmt: OutputFormat,
+
+    /// Setting a config item with format `table.key=value`
+    #[arg(short, long, id = "CONFIG")]
+    write: Vec<String>,
+
+    /// Verbose mode
+    #[arg(short, long)]
+    verbose: bool,
+}
+
+fn parse_config_write_cmd(cmd: &str) -> Result<(String, String, String), String> {
+    let (item, value) = cmd.split_once('=').ok_or_else(|| {
+        format!(
+            "Invalid config setting command `{}`, expected `table.key=value`",
+            cmd
+        )
+    })?;
+    if let Some((table, key)) = item.split_once('.') {
+        Ok((table.into(), key.into(), value.into()))
+    } else {
+        Ok((Config::GLOBAL_TABLE_NAME.into(), item.into(), value.into()))
+    }
+}
+
+macro_rules! unwrap {
+    ($e:expr) => {
+        match $e {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    };
 }
 
 fn main() -> io::Result<()> {
     let args = Args::parse();
 
-    let mut defconfig = Config::new();
-    for spec in args.spec {
-        let spec_toml = std::fs::read_to_string(spec)?;
-        let sub_config = Config::from_toml(&spec_toml).unwrap();
-        defconfig.merge(&sub_config).unwrap();
+    macro_rules! debug {
+        ($($arg:tt)*) => {
+            if args.verbose {
+                eprintln!($($arg)*);
+            }
+        };
     }
 
-    let output_config = if let Some(oldconfig_path) = args.oldconfig {
-        let oldconfig_toml = std::fs::read_to_string(oldconfig_path)?;
-        let oldconfig = Config::from_toml(&oldconfig_toml).unwrap();
-        defconfig.update(&oldconfig).unwrap();
-        defconfig
-    } else {
-        defconfig
-    };
+    let mut config = Config::new();
+    for spec in args.spec {
+        debug!("Reading config spec from {:?}", spec);
+        let spec_toml = std::fs::read_to_string(spec)?;
+        let sub_config = unwrap!(Config::from_toml(&spec_toml));
+        unwrap!(config.merge(&sub_config));
+    }
 
-    let output = output_config.dump(args.fmt).unwrap();
+    if let Some(oldconfig_path) = args.oldconfig {
+        debug!("Loading old config from {:?}", oldconfig_path);
+        let oldconfig_toml = std::fs::read_to_string(oldconfig_path)?;
+        let oldconfig = unwrap!(Config::from_toml(&oldconfig_toml));
+
+        let (untouched, extra) = unwrap!(config.update(&oldconfig));
+        for item in &untouched {
+            eprintln!(
+                "Warning: config item `{}` not set in the old config, using default value",
+                item.item_name(),
+            );
+        }
+        for item in &extra {
+            eprintln!(
+                "Warning: config item `{}` not found in the specification, ignoring",
+                item.item_name(),
+            );
+        }
+    }
+
+    for cmd in args.write {
+        let (table, key, value) = unwrap!(parse_config_write_cmd(&cmd));
+        if table == Config::GLOBAL_TABLE_NAME {
+            debug!("Setting config item `{}` to `{}`", key, value);
+        } else {
+            debug!("Setting config item `{}.{}` to `{}`", table, key, value);
+        }
+        let new_value = unwrap!(ConfigValue::new(&value));
+        let item = unwrap!(config
+            .config_at_mut(&table, &key)
+            .ok_or("Config item not found"));
+        unwrap!(item.value_mut().update(new_value));
+    }
+
+    let output = unwrap!(config.dump(args.fmt));
     if let Some(path) = args.output {
         std::fs::write(path, output)?;
     } else {

@@ -78,7 +78,7 @@ fn test_type_match() {
     check_match!("0", "uint");
     check_match!("0", "int");
     check_match!("2333", "int");
-    check_match!("-2333", "uint");
+    check_match!("-2333", "  uint");
     check_match!("0b1010", "int");
     check_match!("0xdead_beef", "int");
 
@@ -91,11 +91,11 @@ fn test_type_match() {
     check_match!("\"\"", "str");
 
     check_match!("[1, 2, 3]", "[uint]");
-    check_match!("[\"1\", \"2\", \"3\"]", "[uint]");
+    check_match!("[\"1\", \"2\", \"3\"]", "[ uint  ]");
     check_match!("[\"1\", \"2\", \"3\"]", "[str]");
     check_match!("[true, false, true]", "[bool]");
-    check_match!("[\"0\", \"a\", true, -2]", "(uint, str, bool, int)");
-    check_mismatch!("[\"0\", \"a\", true, -2]", "[uint]");
+    check_match!("[\"0\", \"a\", true, -2]", "( uint,  str,   bool,  int )");
+    check_mismatch!("[\"0\", \"a\", true, -2]", "[uint]  ");
     check_match!("[]", "[int]");
     check_match!("[[]]", "[()]");
     check_match!("[[2, 3, 3, 3], [4, 5, 6, 7]]", "[[uint]]");
@@ -117,6 +117,7 @@ fn test_type_match() {
 #[test]
 fn test_err() {
     assert_err!(ConfigType::new("Bool"), InvalidType);
+    assert_err!(ConfigType::new("u int"), InvalidType);
     assert_err!(ConfigType::new("usize"), InvalidType);
     assert_err!(ConfigType::new(""), InvalidType);
     assert_err!(ConfigType::new("&str"), InvalidType);
