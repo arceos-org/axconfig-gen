@@ -8,8 +8,8 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Path to the config specification file
-    #[arg(short, long, required = true)]
+    /// Paths to the config specification files
+    #[arg(required = true)]
     spec: Vec<String>,
 
     /// Path to the old config file
@@ -29,8 +29,12 @@ struct Args {
     )]
     fmt: OutputFormat,
 
+    /// Getting a config item with format `table.key`
+    #[arg(short, long, id = "RD_CONFIG")]
+    read: Vec<String>,
+
     /// Setting a config item with format `table.key=value`
-    #[arg(short, long, id = "CONFIG")]
+    #[arg(short, long, id = "WR_CONFIG")]
     write: Vec<String>,
 
     /// Verbose mode
@@ -38,11 +42,19 @@ struct Args {
     verbose: bool,
 }
 
-fn parse_config_write_cmd(cmd: &str) -> Result<(String, String, String), String> {
-    let (item, value) = cmd.split_once('=').ok_or_else(|| {
+fn parse_config_read_arg(arg: &str) -> Result<(String, String), String> {
+    if let Some((table, key)) = arg.split_once('.') {
+        Ok((table.into(), key.into()))
+    } else {
+        Ok((Config::GLOBAL_TABLE_NAME.into(), arg.into()))
+    }
+}
+
+fn parse_config_write_arg(arg: &str) -> Result<(String, String, String), String> {
+    let (item, value) = arg.split_once('=').ok_or_else(|| {
         format!(
             "Invalid config setting command `{}`, expected `table.key=value`",
-            cmd
+            arg
         )
     })?;
     if let Some((table, key)) = item.split_once('.') {
@@ -77,44 +89,65 @@ fn main() -> io::Result<()> {
 
     let mut config = Config::new();
     for spec in args.spec {
-        debug!("Reading config spec from {:?}", spec);
+        debug!("[DEBUG] Reading config spec from {:?}", spec);
         let spec_toml = std::fs::read_to_string(spec)?;
         let sub_config = unwrap!(Config::from_toml(&spec_toml));
         unwrap!(config.merge(&sub_config));
     }
 
     if let Some(oldconfig_path) = args.oldconfig {
-        debug!("Loading old config from {:?}", oldconfig_path);
+        debug!("[DEBUG] Loading old config from {:?}", oldconfig_path);
         let oldconfig_toml = std::fs::read_to_string(oldconfig_path)?;
         let oldconfig = unwrap!(Config::from_toml(&oldconfig_toml));
 
         let (untouched, extra) = unwrap!(config.update(&oldconfig));
         for item in &untouched {
             eprintln!(
-                "Warning: config item `{}` not set in the old config, using default value",
+                "[WARN] config item `{}` not set in the old config, using default value",
                 item.item_name(),
             );
         }
         for item in &extra {
             eprintln!(
-                "Warning: config item `{}` not found in the specification, ignoring",
+                "[WARN] config item `{}` not found in the specification, ignoring",
                 item.item_name(),
             );
         }
     }
 
-    for cmd in args.write {
-        let (table, key, value) = unwrap!(parse_config_write_cmd(&cmd));
+    for arg in &args.write {
+        let (table, key, value) = unwrap!(parse_config_write_arg(arg));
         if table == Config::GLOBAL_TABLE_NAME {
-            debug!("Setting config item `{}` to `{}`", key, value);
+            debug!("[DEBUG] Setting config item `{}` to `{}`", key, value);
         } else {
-            debug!("Setting config item `{}.{}` to `{}`", table, key, value);
+            debug!(
+                "[DEBUG] Setting config item `{}.{}` to `{}`",
+                table, key, value
+            );
         }
         let new_value = unwrap!(ConfigValue::new(&value));
         let item = unwrap!(config
             .config_at_mut(&table, &key)
-            .ok_or("Config item not found"));
+            .ok_or_else(|| format!("Config item `{}` not found", arg)));
         unwrap!(item.value_mut().update(new_value));
+    }
+
+    for arg in &args.read {
+        let (table, key) = unwrap!(parse_config_read_arg(arg));
+        if table == Config::GLOBAL_TABLE_NAME {
+            debug!("[DEBUG] Getting config item `{}`", key);
+        } else {
+            debug!("[DEBUG] Getting config item `{}.{}`", table, key);
+        }
+        let item = unwrap!(config
+            .config_at(&table, &key)
+            .ok_or_else(|| format!("Config item `{}` not found", arg)));
+        println!("{}", item.value().to_toml_value());
+    }
+
+    if !args.read.is_empty() {
+        debug!("[DEBUG] In reading mode, no output");
+        return Ok(());
     }
 
     let output = unwrap!(config.dump(args.fmt));

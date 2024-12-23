@@ -112,6 +112,11 @@ impl Config {
         }
     }
 
+    /// Returns whether the config object contains no items.
+    pub fn is_empty(&self) -> bool {
+        self.global.is_empty() && self.tables.is_empty()
+    }
+
     fn new_table(&mut self, name: &str, comments: &str) -> ConfigResult<&mut ConfigTable> {
         if name == Self::GLOBAL_TABLE_NAME {
             return Err(ConfigErr::Other(format!(
