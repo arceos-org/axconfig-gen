@@ -1,4 +1,5 @@
 use std::io;
+use std::path::PathBuf;
 
 use axconfig_gen::{Config, ConfigValue, OutputFormat};
 use clap::builder::{PossibleValuesParser, TypedValueParser};
@@ -117,11 +118,20 @@ fn main() -> io::Result<()> {
     }
 
     let output = unwrap!(config.dump(args.fmt));
-    if let Some(path) = args.output {
+    if let Some(path) = args.output.map(PathBuf::from) {
         if let Ok(oldconfig) = std::fs::read_to_string(&path) {
+            // If the output is the same as the old config, do nothing
             if oldconfig == output {
                 return Ok(());
             }
+            // Calculate the path to the backup file
+            let bak_path = if let Some(ext) = path.extension() {
+                path.with_extension(format!("old.{}", ext.to_string_lossy()))
+            } else {
+                path.with_extension("old")
+            };
+            // Backup the old config file
+            std::fs::write(bak_path, oldconfig)?;
         }
         std::fs::write(path, output)?;
     } else {

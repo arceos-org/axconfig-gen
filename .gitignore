@@ -1,4 +1,4 @@
 /target
 /.vscode
+/.axconfig.*
 .DS_Store
-.axconfig.toml
