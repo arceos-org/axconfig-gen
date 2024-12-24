@@ -1,0 +1,51 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="axconfig-gen"><title>axconfig_gen - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="axconfig_gen" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0-nightly (bdc6b3de4 2024-12-23)" data-channel="nightly" data-search-js="search-036cda7a.js" data-settings-js="settings-0f613d39.js" ><script src="../static.files/storage-59e33391.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../axconfig_gen/index.html">axconfig_<wbr>gen</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#axconfig-gen" title="axconfig-gen">axconfig-gen</a><ul><li><a href="#executable-usage" title="Executable Usage">Executable Usage</a></li><li><a href="#library-usage" title="Library Usage">Library Usage</a></li><li><a href="#related-libraries" title="Related libraries">Related libraries</a></li></ul></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>axconfig_gen</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/axconfig_gen/lib.rs.html#1-57">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="axconfig-gen"><a class="doc-anchor" href="#axconfig-gen">§</a>axconfig-gen</h2>
+<p>A TOML-based configuration generation tool for <a href="https://github.com/arceos-org/arceos">ArceOS</a>.</p>
+<h4 id="executable-usage"><a class="doc-anchor" href="#executable-usage">§</a>Executable Usage</h4><div class="example-wrap"><pre class="language-text"><code>Usage: axconfig-gen [OPTIONS] &lt;SPEC&gt;...
+
+Arguments:
+  &lt;SPEC&gt;...  Paths to the config specification files
+
+Options:
+  -c, --oldconfig &lt;OLDCONFIG&gt;  Path to the old config file
+  -o, --output &lt;OUTPUT&gt;        Path to the output config file
+  -f, --fmt &lt;FMT&gt;              The output format [default: toml] [possible values: toml, rust]
+  -r, --read &lt;RD_CONFIG&gt;       Getting a config item with format `table.key`
+  -w, --write &lt;WR_CONFIG&gt;      Setting a config item with format `table.key=value`
+  -v, --verbose                Verbose mode
+  -h, --help                   Print help
+  -V, --version                Print version</code></pre></div>
+<p>For example, to generate a config file <code>.axconfig.toml</code> from the config specifications distributed in <code>a.toml</code> and <code>b.toml</code>, you can run:</p>
+<div class="example-wrap"><pre class="language-console"><code>$ axconfig-gen a.toml b.toml -o .axconfig.toml -f toml</code></pre></div>
+<p>See <a href="https://github.com/arceos-org/axconfig-gen/blob/main/example-configs/defconfig.toml">defconfig.toml</a> for an example of a config specification file.</p>
+<p>Value types are necessary for generating Rust constant definitions. Types can be specified by the comment following the config item. Currently supported types are <code>bool</code>, <code>int</code>, <code>uint</code>, <code>str</code>, <code>(type1, type2, ...)</code> for tuples, and <code>[type]</code> for arrays. If no type is specified, it will try to infer the type from the value.</p>
+<h4 id="library-usage"><a class="doc-anchor" href="#library-usage">§</a>Library Usage</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>axconfig_gen::{Config, OutputFormat};
+
+<span class="kw">let </span>config_toml = <span class="string">r#"
+are-you-ok = true
+one-two-three = 123
+
+[hello]
+"one-two-three" = "456"     # int
+array = [1, 2, 3]           # [uint]
+tuple = [1, "abc", 3]
+"#</span>;
+
+<span class="kw">let </span>config = Config::from_toml(config_toml).unwrap();
+<span class="kw">let </span>rust_code = config.dump(OutputFormat::Rust).unwrap();
+
+<span class="macro">assert_eq!</span>(rust_code,
+<span class="string">r#"pub const ARE_YOU_OK: bool = true;
+pub const ONE_TWO_THREE: usize = 123;
+
+pub mod hello {
+    pub const ARRAY: &amp;[usize] = &amp;[1, 2, 3];
+    pub const ONE_TWO_THREE: isize = 456;
+    pub const TUPLE: (usize, &amp;str, usize) = (1, "abc", 3);
+}
+"#</span>);</code></pre></div>
+<h4 id="related-libraries"><a class="doc-anchor" href="#related-libraries">§</a>Related libraries</h4>
+<p>There is also a procedural macro library <a href="https://docs.rs/axconfig-gen-macros"><code>axconfig-gen-macros</code></a> that can be
+used to include TOML files in your project and convert them to Rust code at
+compile time.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.Config.html" title="struct axconfig_gen::Config">Config</a></div><div class="desc docblock-short">A structure storing all config items.</div></li><li><div class="item-name"><a class="struct" href="struct.ConfigItem.html" title="struct axconfig_gen::ConfigItem">Config<wbr>Item</a></div><div class="desc docblock-short">A structure representing a config item.</div></li><li><div class="item-name"><a class="struct" href="struct.ConfigValue.html" title="struct axconfig_gen::ConfigValue">Config<wbr>Value</a></div><div class="desc docblock-short">A structure representing a config value.</div></li></ul><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="enum" href="enum.ConfigErr.html" title="enum axconfig_gen::ConfigErr">Config<wbr>Err</a></div><div class="desc docblock-short">The error type on config parsing.</div></li><li><div class="item-name"><a class="enum" href="enum.ConfigType.html" title="enum axconfig_gen::ConfigType">Config<wbr>Type</a></div><div class="desc docblock-short">The supported types in the config file.</div></li><li><div class="item-name"><a class="enum" href="enum.OutputFormat.html" title="enum axconfig_gen::OutputFormat">Output<wbr>Format</a></div><div class="desc docblock-short">The format of the generated file.</div></li></ul><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="type" href="type.ConfigResult.html" title="type axconfig_gen::ConfigResult">Config<wbr>Result</a></div><div class="desc docblock-short">A specialized <a href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result"><code>Result</code></a> type with <a href="enum.ConfigErr.html" title="enum axconfig_gen::ConfigErr"><code>ConfigErr</code></a> as the error type.</div></li></ul></section></div></main></body></html>
