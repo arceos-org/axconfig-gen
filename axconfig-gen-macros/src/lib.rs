@@ -49,6 +49,16 @@ pub fn parse_configs(config_toml: TokenStream) -> TokenStream {
 /// See the [crate-level documentation][crate].
 #[proc_macro]
 pub fn include_configs(path: TokenStream) -> TokenStream {
+    #[cfg(feature = "nightly")]
+    let path = match path.expand_expr() {
+        Ok(s) => s,
+        Err(e) => {
+            return Error::new(proc_macro2::Span::call_site(), e.to_string())
+                .to_compile_error()
+                .into()
+        }
+    };
+
     let path = parse_macro_input!(path as LitStr);
     let root = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
     let cfg_path = std::path::Path::new(&root).join(path.value());

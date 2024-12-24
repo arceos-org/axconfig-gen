@@ -1,6 +1,3 @@
-use std::io;
-use std::path::PathBuf;
-
 use axconfig_gen::{Config, ConfigValue, OutputFormat};
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::Parser;
@@ -76,7 +73,7 @@ macro_rules! unwrap {
     };
 }
 
-fn main() -> io::Result<()> {
+fn main() {
     let args = Args::parse();
 
     macro_rules! debug {
@@ -88,16 +85,20 @@ fn main() -> io::Result<()> {
     }
 
     let mut config = Config::new();
-    for spec in args.spec {
-        debug!("[DEBUG] Reading config spec from {:?}", spec);
-        let spec_toml = std::fs::read_to_string(spec)?;
+    for spec in &args.spec {
+        debug!("[DEBUG] Loading config specification from {:?}", spec);
+        let spec_toml = unwrap!(std::fs::read_to_string(spec).inspect_err(|_| {
+            eprintln!("Failed to read config specification file {:?}", spec);
+        }));
         let sub_config = unwrap!(Config::from_toml(&spec_toml));
         unwrap!(config.merge(&sub_config));
     }
 
-    if let Some(oldconfig_path) = args.oldconfig {
+    if let Some(oldconfig_path) = &args.oldconfig {
         debug!("[DEBUG] Loading old config from {:?}", oldconfig_path);
-        let oldconfig_toml = std::fs::read_to_string(oldconfig_path)?;
+        let oldconfig_toml = unwrap!(std::fs::read_to_string(oldconfig_path).inspect_err(|_| {
+            eprintln!("Failed to read old config file {:?}", oldconfig_path);
+        }));
         let oldconfig = unwrap!(Config::from_toml(&oldconfig_toml));
 
         let (untouched, extra) = unwrap!(config.update(&oldconfig));
@@ -147,15 +148,15 @@ fn main() -> io::Result<()> {
 
     if !args.read.is_empty() {
         debug!("[DEBUG] In reading mode, no output");
-        return Ok(());
+        return;
     }
 
     let output = unwrap!(config.dump(args.fmt));
-    if let Some(path) = args.output.map(PathBuf::from) {
+    if let Some(path) = args.output.as_ref().map(std::path::Path::new) {
         if let Ok(oldconfig) = std::fs::read_to_string(&path) {
             // If the output is the same as the old config, do nothing
             if oldconfig == output {
-                return Ok(());
+                return;
             }
             // Calculate the path to the backup file
             let bak_path = if let Some(ext) = path.extension() {
@@ -164,12 +165,10 @@ fn main() -> io::Result<()> {
                 path.with_extension("old")
             };
             // Backup the old config file
-            std::fs::write(bak_path, oldconfig)?;
+            unwrap!(std::fs::write(bak_path, oldconfig));
         }
-        std::fs::write(path, output)?;
+        unwrap!(std::fs::write(path, output));
     } else {
         println!("{}", output);
     }
-
-    Ok(())
 }
