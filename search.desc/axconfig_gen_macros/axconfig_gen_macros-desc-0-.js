@@ -1,0 +1,1 @@
+searchState.loadedDescShard("axconfig_gen_macros", 0, "axconfig-gen-macros\nIncludes a TOML format config file and expands it into …\nParses TOML config content and expands it into Rust code.")
