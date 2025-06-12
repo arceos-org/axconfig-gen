@@ -40,5 +40,9 @@ pub mod hello {
 You can also include the configuration file directly:
 
 ```rust,ignore
-axconfig_gen_macros::include_configs!("/path/to/config.toml");
+axconfig_gen_macros::include_configs!("path/to/config.toml");
+// or specify the config file path via an environment variable
+axconfig_gen_macros::include_configs!(path_env = "AX_CONFIG_PATH");
+// or with a fallback path if the environment variable is not set
+axconfig_gen_macros::include_configs!(path_env = "AX_CONFIG_PATH", fallback = "path/to/defconfig.toml");
 ```

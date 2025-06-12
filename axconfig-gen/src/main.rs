@@ -27,11 +27,11 @@ struct Args {
     fmt: OutputFormat,
 
     /// Getting a config item with format `table.key`
-    #[arg(short, long, id = "RD_CONFIG")]
+    #[arg(short, long, value_name = "RD_CONFIG")]
     read: Vec<String>,
 
     /// Setting a config item with format `table.key=value`
-    #[arg(short, long, id = "WR_CONFIG")]
+    #[arg(short, long, value_name = "WR_CONFIG")]
     write: Vec<String>,
 
     /// Verbose mode
@@ -153,7 +153,7 @@ fn main() {
 
     let output = unwrap!(config.dump(args.fmt));
     if let Some(path) = args.output.as_ref().map(std::path::Path::new) {
-        if let Ok(oldconfig) = std::fs::read_to_string(&path) {
+        if let Ok(oldconfig) = std::fs::read_to_string(path) {
             // If the output is the same as the old config, do nothing
             if oldconfig == output {
                 return;
