@@ -81,7 +81,7 @@ pub fn include_configs(args: TokenStream) -> TokenStream {
     };
 
     quote! {
-        ::axconfig_gen_macros::parse_configs!(#config_toml);
+        ::axconfig_macros::parse_configs!(#config_toml);
     }
     .into()
 }

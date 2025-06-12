@@ -3,6 +3,7 @@ name = "axconfig-gen"
 description = "A TOML-based configuration generation tool for ArceOS."
 documentation = "https://docs.rs/axconfig-gen"
 categories = ["config", "parsing", "parser-implementations"]
+rust-version = "1.76"
 keywords.workspace = true
 version.workspace = true
 edition.workspace = true

@@ -63,6 +63,6 @@ pub mod hello {
 
 ### Related libraries
 
-There is also a procedural macro library [`axconfig-gen-macros`](https://docs.rs/axconfig-gen-macros) that can be
+There is also a procedural macro library [`axconfig-macros`](https://docs.rs/axconfig-macros) that can be
 used to include TOML files in your project and convert them to Rust code at
 compile time.
