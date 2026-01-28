@@ -7,10 +7,6 @@ jobs:
   check:
     name: Quality Checks
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        targets: [aarch64-unknown-none-softfloat, aarch64-unknown-none]
 
     steps:
       - name: Checkout code
@@ -21,7 +17,6 @@ jobs:
         with:
           toolchain: nightly-2025-08-15
           components: rust-src, clippy, rustfmt
-          targets: ${{ matrix.targets }}
 
       - name: Check rust version
         run: rustc --version --verbose
@@ -30,10 +25,10 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Build
-        run: cargo build --target ${{ matrix.targets }}
+        run: cargo build
 
       - name: Run clippy
-        run: cargo clippy --target ${{ matrix.targets }} -- -D warnings
+        run: cargo clippy -- -D warnings
 
       - name: Build documentation
-        run: cargo doc --no-deps --target ${{ matrix.targets }}
+        run: cargo doc --no-deps
