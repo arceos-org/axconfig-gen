@@ -1,0 +1,36 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="axconfig-macros"><title>axconfig_macros - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-0bd2dfd4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="axconfig_macros" data-themes="" data-resource-suffix="" data-rustdoc-version="1.95.0-nightly (de6d33c03 2026-01-28)" data-channel="nightly" data-search-js="search-86d08462.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-f9617a14.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-12f88f4f.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate axconfig_macros</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../axconfig_macros/index.html">axconfig_<wbr>macros</a><span class="version">0.2.1</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#axconfig-macros" title="axconfig-macros">axconfig-macros</a><ul><li><a href="#example" title="Example">Example</a></li></ul></li></ul><h3><a href="#macros">Crate Items</a></h3><ul class="block"><li><a href="#macros" title="Macros">Macros</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>axconfig_<wbr>macros</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/axconfig_macros/lib.rs.html#1-143">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="axconfig-macros"><a class="doc-anchor" href="#axconfig-macros">§</a>axconfig-macros</h2>
+<p>Procedural macros for converting TOML format configurations to equivalent Rust constant definitions.</p>
+<h3 id="example"><a class="doc-anchor" href="#example">§</a>Example</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">axconfig_macros::parse_configs!</span>(<span class="string">r#"
+are-you-ok = true
+one-two-three = 123
+
+[hello]
+"one-two-three" = "456"     # int
+array = [1, 2, 3]           # [uint]
+tuple = [1, "abc", 3]
+"#</span>);
+
+<span class="macro">assert_eq!</span>(ARE_YOU_OK, <span class="bool-val">true</span>);
+<span class="macro">assert_eq!</span>(ONE_TWO_THREE, <span class="number">123usize</span>);
+<span class="macro">assert_eq!</span>(hello::ONE_TWO_THREE, <span class="number">456isize</span>);
+<span class="macro">assert_eq!</span>(hello::ARRAY, [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);
+<span class="macro">assert_eq!</span>(hello::TUPLE, (<span class="number">1</span>, <span class="string">"abc"</span>, <span class="number">3</span>));</code></pre></div>
+<p>Value types are necessary for generating Rust constant definitions. Types can be specified by the comment following the config item. Currently supported types are <code>bool</code>, <code>int</code>, <code>uint</code>, <code>str</code>, <code>(type1, type2, ...)</code> for tuples, and <code>[type]</code> for arrays. If no type is specified, it will try to infer the type from the value.</p>
+<p>The above example will generate the following constants:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">pub const </span>ARE_YOU_OK: bool = <span class="bool-val">true</span>;
+<span class="kw">pub const </span>ONE_TWO_THREE: usize = <span class="number">123</span>;
+
+<span class="kw">pub mod </span>hello {
+    <span class="kw">pub const </span>ARRAY: <span class="kw-2">&amp;</span>[usize] = <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+    <span class="kw">pub const </span>ONE_TWO_THREE: isize = <span class="number">456</span>;
+    <span class="kw">pub const </span>TUPLE: (usize, <span class="kw-2">&amp;</span>str, usize) = (<span class="number">1</span>, <span class="string">"abc"</span>, <span class="number">3</span>);
+}</code></pre></div>
+<p>You can also include the configuration file directly:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="macro">axconfig_macros::include_configs!</span>(<span class="string">"path/to/config.toml"</span>);
+<span class="comment">// or specify the config file path via an environment variable
+</span><span class="macro">axconfig_macros::include_configs!</span>(path_env = <span class="string">"AX_CONFIG_PATH"</span>);
+<span class="comment">// or with a fallback path if the environment variable is not set
+</span><span class="macro">axconfig_macros::include_configs!</span>(path_env = <span class="string">"AX_CONFIG_PATH"</span>, fallback = <span class="string">"path/to/defconfig.toml"</span>);</code></pre></div></div></details><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><dl class="item-table"><dt><a class="macro" href="macro.include_configs.html" title="macro axconfig_macros::include_configs">include_<wbr>configs</a></dt><dd>Includes a TOML format config file and expands it into Rust code.</dd><dt><a class="macro" href="macro.parse_configs.html" title="macro axconfig_macros::parse_configs">parse_<wbr>configs</a></dt><dd>Parses TOML config content and expands it into Rust code.</dd></dl></section></div></main></body></html>
